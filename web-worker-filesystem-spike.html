@@ -2,25 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Parallel Web Workers with Progress</title>
+    <title>Dynamic Parallel Workers</title>
+    <!--suppress CssUnusedSymbol -->
     <style>
-        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        .output { background: #f4f4f4; padding: 10px; border-radius: 4px; margin-top: 10px; word-break: break-all; border: 1px solid #ddd; }
+        body {
+            font-family: sans-serif;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        #container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .output {
+            background: #f4f4f4;
+            padding: 10px;
+            border-radius: 4px;
+            word-break: break-all;
+            border: 1px solid #ddd;
+        }
     </style>
 </head>
 <body>
 
-<h1>Parallel Workers + Progress</h1>
-<button id="startBtn">Start 3 Workers</button>
-<div id="output1" class="output">Worker 1: Idle</div>
-<div id="output2" class="output">Worker 2: Idle</div>
-<div id="output3" class="output">Worker 3: Idle</div>
+<h1>Dynamic Workers + Progress</h1>
+<label for="timeoutInput">Timeout (ms)</label><input id="timeoutInput" type="number" value="10000" placeholder="Timeout (ms)">
+<button id="startBtn">Start Workers</button>
+<div id="container"></div>
 
 <script id="worker-logic" type="text/plain">
     self.onmessage = function(e) {
         let num = BigInt(e.data);
-        let result = true;
-
         function bigSqrt(value) {
             let x = value / 2n + 1n;
             let y = (x + value / x) / 2n;
@@ -34,58 +49,71 @@
             if (i % 1000000n === 0n) {
                 self.postMessage({ type: 'progress', percent: Number((i * 100n) / limit) });
             }
-            if (num % i === 0n) { result = false; break; }
+                if (num % i === 0n) {
+                    self.postMessage({ type: 'result', number: num, isPrime: false });
+                    return;
         }
-        self.postMessage({ type: 'result', number: num, isPrime: result });
+            }
+            self.postMessage({ type: 'result', number: num, isPrime: true });
     };
 </script>
 
 <script>
   const btn = document.getElementById('startBtn');
+  const container = document.getElementById('container');
   const workerCode = document.getElementById('worker-logic').textContent;
   const workerUrl = URL.createObjectURL(new Blob([workerCode], {type: 'application/javascript'}));
 
-  let workers = [null, null, null];
-  let timers = [null, null, null];
+  // Add or remove numbers here; the UI will adapt automatically
+  const numbers = [12345678910987654321n, 999999999999989n, 179426549n, 104729n, 7n, 1234567890n];
 
-  function spawnWorker(index) {
-    if (workers[index]) workers[index].terminate();
-    const w = new Worker(workerUrl);
-    const out = document.getElementById(`output${index + 1}`);
+  let workers = [];
+  let timers = [];
+  let timeout = 0;
 
-    w.onmessage = (e) => {
+  function initUI() {
+    container.innerHTML = '';
+    numbers.forEach((_, i) => {
+      const div = document.createElement('div');
+      div.id = `output${i}`;
+      div.className = 'output';
+      div.innerText = `Worker ${i + 1}: Idle`;
+      container.appendChild(div);
+    });
+  }
+
+   function runWorker(num, i) {
+    if (workers[i]) workers[i].terminate();
+
+    const worker = new Worker(workerUrl);
+    const out = document.getElementById(`output${i}`);
+    workers[i] = worker;
+
+    worker.onmessage = (e) => {
       if (e.data.type === 'progress') {
-        out.innerText = `Worker ${index + 1} Thinking... (${e.data.percent}%)`;
+        out.innerText = `Worker ${i + 1}: Checking... ${e.data.percent}%`;
       } else {
-        clearTimeout(timers[index]);
-        const {number, isPrime} = e.data;
-        out.innerText = `Worker ${index + 1} Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
+        clearTimeout(timers[i]);
+        out.innerText = `Worker ${i + 1} Result: ${e.data.number} is ${e.data.isPrime ? 'PRIME' : 'NOT PRIME'}`;
       }
     };
-    workers[index] = w;
+
+    clearTimeout(timers[i]);
+    timers[i] = setTimeout(() => {
+      workers[i].terminate();
+      out.innerText = `Worker ${i + 1} Error: Timed out.`;
+    }, timeout);
+
+    worker.postMessage(num);
   }
 
   btn.onclick = () => {
-    // Numbers: Massive (timeout test), Medium, Small
-    const numbers = [12345678910987654321n, 999999999999989n, 179426549n];
-
-    numbers.forEach((num, i) => {
-      const out = document.getElementById(`output${i + 1}`);
-      out.innerText = `Worker ${i + 1} starting...`;
-
-      spawnWorker(i);
-
-      clearTimeout(timers[i]);
-      timers[i] = setTimeout(() => {
-        workers[i].terminate();
-        out.innerText = `Worker ${i + 1} Error: Timed out.`;
-      }, 10000);
-
-      workers[i].postMessage(num);
-    });
+    timeout = document.getElementById('timeoutInput').valueAsNumber;
+    initUI();
+    numbers.forEach((num, i) => runWorker(num, i));
   };
 
-  [0, 1, 2].forEach(i => spawnWorker(i));
+  initUI(); // Initialize display on load
 </script>
 </body>
 </html>
