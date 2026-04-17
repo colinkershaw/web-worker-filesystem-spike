@@ -37,27 +37,40 @@
 <script>
   const output = document.getElementById('output');
   const btn = document.getElementById('startBtn');
+  let timer = null; // Safety net timer
 
   // Extract text, create Blob, and spawn Worker
   const workerCode = document.getElementById('worker-logic').textContent;
   const blob = new Blob([workerCode], { type: 'application/javascript' });
   const workerUrl = URL.createObjectURL(blob);
-  const worker = new Worker(workerUrl);
+  let worker = new Worker(workerUrl);
+
+  function attachHandlers() {
+    worker.onmessage = (e) => {
+      clearTimeout(timer); // Cancel safety net
+      const { number, isPrime } = e.data;
+      output.innerText = `Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
+    };
+  }
 
   btn.onclick = () => {
     // const testNum = 9007199254740991; // Large prime
     const testNum = 100000000000000003n; // Larger prime
     output.innerText = "Worker is thinking...";
+
+    // Start 10s safety net
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      worker.terminate();
+      output.innerText = "Error: Calculation timed out after 10s.";
+      worker = new Worker(workerUrl); // Re-spawn for next click
+      attachHandlers();
+    }, 10000);
+
     worker.postMessage(testNum);
   };
 
-  worker.onmessage = (e) => {
-    const { number, isPrime } = e.data;
-    output.innerText = `Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
-  };
-
-  // Optional: Clean up the URL object as it's no longer needed after worker init
-  URL.revokeObjectURL(workerUrl);
+  attachHandlers();
 </script>
 
 </body>
