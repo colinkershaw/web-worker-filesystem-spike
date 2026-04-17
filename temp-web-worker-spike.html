@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Single File Worker</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
+        #output { background: #f4f4f4; padding: 10px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+<h1>Web Worker (Single File)</h1>
+<button id="startBtn">Calculate Prime in Background</button>
+<div id="output">Worker status: Idle</div>
+
+<!-- 1. HIDDEN WORKER SCRIPT -->
+<!-- type="text/plain" prevents the browser from executing this on the main thread -->
+<script id="worker-logic" type="text/plain">
+    self.onmessage = function(e) {
+        let num = e.data;
+        let result = true;
+
+        // Simple CPU-heavy task (checking if a number is prime)
+        for (let i = 2; i <= Math.sqrt(num); i++) {
+            if (num % i === 0) {
+                result = false;
+                break;
+            }
+        }
+
+        self.postMessage({ number: num, isPrime: result });
+    };
+</script>
+
+<!-- 2. MAIN THREAD SCRIPT -->
+<script>
+  const output = document.getElementById('output');
+  const btn = document.getElementById('startBtn');
+
+  // Extract text, create Blob, and spawn Worker
+  const workerCode = document.getElementById('worker-logic').textContent;
+  const blob = new Blob([workerCode], { type: 'application/javascript' });
+  const workerUrl = URL.createObjectURL(blob);
+  const worker = new Worker(workerUrl);
+
+  btn.onclick = () => {
+    const testNum = 9007199254740991; // Large prime
+    output.innerText = "Worker is thinking...";
+    worker.postMessage(testNum);
+  };
+
+  worker.onmessage = (e) => {
+    const { number, isPrime } = e.data;
+    output.innerText = `Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
+  };
+
+  // Optional: Clean up the URL object as it's no longer needed after worker init
+  URL.revokeObjectURL(workerUrl);
+</script>
+
+</body>
+</html>
