@@ -2,6 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <!-- REQUIRED FOR MOBILE RESPONSIVENESS -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dynamic Parallel Workers</title>
     <!--suppress CssUnusedSymbol -->
     <style>
@@ -13,7 +15,7 @@
 
         #container {
             display: flex;
-            flex-direction: column;
+            flex-wrap: wrap; /* Allows items to wrap on small screens */
             gap: 10px;
         }
 
@@ -23,7 +25,10 @@
             border-radius: 4px;
             word-break: break-all;
             border: 1px solid #ddd;
+            flex: 1 1 300px; /* Grows, shrinks, and sets a 300px base width */
+            box-sizing: border-box;
         }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; width: 100%; max-width: 200px; }
     </style>
 </head>
 <body>
@@ -49,12 +54,13 @@
             if (i % 1000000n === 0n) {
                 self.postMessage({ type: 'progress', percent: Number((i * 100n) / limit) });
             }
-                if (num % i === 0n) {
+            if (num % i === 0n) {
                     self.postMessage({ type: 'result', number: num, isPrime: false });
+                    self.close(); // Kills the worker thread instantly
                     return;
-        }
             }
-            self.postMessage({ type: 'result', number: num, isPrime: true });
+        }
+        self.postMessage({ type: 'result', number: num, isPrime: true });
     };
 </script>
 
