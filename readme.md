@@ -20,7 +20,6 @@ Trial division would take years for these; they are perfect for testing your saf
 * 10,000,000,000,000,666,000,000,000,000,001 (Belphegor's Prime; 31 digits) [8]
 * 170,141,183,460,469,231,731,687,303,715,884,105,727 (A 39-digit Mersenne prime, $2^{127}-1$) [9, 10]
 
-Would you like to know how to optimize the BigInt square root function to be even faster?
 
 [1] [https://www.gleammath.com](https://www.gleammath.com/post/the-search-for-the-largest-primes-and-a-million-dollar-problem)
 [2] [https://inventwithpython.com](https://inventwithpython.com/cracking/chapter22.html#:~:text=Here%20is%20a%20short%20list%20of%20prime,269%2C%20271%2C%20277%2C%20281%2C%20and%20so%20on.)
