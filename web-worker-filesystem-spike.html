@@ -2,77 +2,90 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Single File Worker</title>
+    <title>Parallel Web Workers with Progress</title>
     <style>
         body { font-family: sans-serif; padding: 20px; line-height: 1.6; }
-        #output { background: #f4f4f4; padding: 10px; border-radius: 4px; }
+        .output { background: #f4f4f4; padding: 10px; border-radius: 4px; margin-top: 10px; word-break: break-all; border: 1px solid #ddd; }
     </style>
 </head>
 <body>
 
-<h1>Web Worker (Single File)</h1>
-<button id="startBtn">Calculate Prime in Background</button>
-<div id="output">Worker status: Idle</div>
+<h1>Parallel Workers + Progress</h1>
+<button id="startBtn">Start 3 Workers</button>
+<div id="output1" class="output">Worker 1: Idle</div>
+<div id="output2" class="output">Worker 2: Idle</div>
+<div id="output3" class="output">Worker 3: Idle</div>
 
-<!-- 1. HIDDEN WORKER SCRIPT -->
-<!-- type="text/plain" prevents the browser from executing this on the main thread -->
 <script id="worker-logic" type="text/plain">
     self.onmessage = function(e) {
-        let num = e.data;
+        let num = BigInt(e.data);
         let result = true;
 
-        // Simple CPU-heavy task (checking if a number is prime)
-        for (let i = 2; i <= Math.sqrt(num); i++) {
-            if (num % i === 0) {
-                result = false;
-                break;
-            }
+        function bigSqrt(value) {
+            let x = value / 2n + 1n;
+            let y = (x + value / x) / 2n;
+            while (y < x) { x = y; y = (x + value / x) / 2n; }
+            return x;
         }
 
-        self.postMessage({ number: num, isPrime: result });
+        const limit = bigSqrt(num);
+        // Report progress every 1,000,000 iterations to avoid slowing down the UI
+        for (let i = 2n; i <= limit; i++) {
+            if (i % 1000000n === 0n) {
+                self.postMessage({ type: 'progress', percent: Number((i * 100n) / limit) });
+            }
+            if (num % i === 0n) { result = false; break; }
+        }
+        self.postMessage({ type: 'result', number: num, isPrime: result });
     };
 </script>
 
-<!-- 2. MAIN THREAD SCRIPT -->
 <script>
-  const output = document.getElementById('output');
   const btn = document.getElementById('startBtn');
-  let timer = null; // Safety net timer
-
-  // Extract text, create Blob, and spawn Worker
   const workerCode = document.getElementById('worker-logic').textContent;
-  const blob = new Blob([workerCode], { type: 'application/javascript' });
-  const workerUrl = URL.createObjectURL(blob);
-  let worker = new Worker(workerUrl);
+  const workerUrl = URL.createObjectURL(new Blob([workerCode], {type: 'application/javascript'}));
 
-  function attachHandlers() {
-    worker.onmessage = (e) => {
-      clearTimeout(timer); // Cancel safety net
-      const { number, isPrime } = e.data;
-      output.innerText = `Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
+  let workers = [null, null, null];
+  let timers = [null, null, null];
+
+  function spawnWorker(index) {
+    if (workers[index]) workers[index].terminate();
+    const w = new Worker(workerUrl);
+    const out = document.getElementById(`output${index + 1}`);
+
+    w.onmessage = (e) => {
+      if (e.data.type === 'progress') {
+        out.innerText = `Worker ${index + 1} Thinking... (${e.data.percent}%)`;
+      } else {
+        clearTimeout(timers[index]);
+        const {number, isPrime} = e.data;
+        out.innerText = `Worker ${index + 1} Result: ${number} is ${isPrime ? 'PRIME' : 'NOT PRIME'}`;
+      }
     };
+    workers[index] = w;
   }
 
   btn.onclick = () => {
-    // const testNum = 9007199254740991; // Large prime [!!LLM ERROR: NOT PRIME]
-    const testNum = 9007199254740881; // Large prime
-    // const testNum = 100000000000000003n; // Larger prime
-    output.innerText = "Worker is thinking...";
+    // Numbers: Massive (timeout test), Medium, Small
+    const numbers = [12345678910987654321n, 999999999999989n, 179426549n];
 
-    // Start 10s safety net
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      worker.terminate();
-      output.innerText = "Error: Calculation timed out after 10s.";
-      worker = new Worker(workerUrl); // Re-spawn for next click
-      attachHandlers();
-    }, 10000);
+    numbers.forEach((num, i) => {
+      const out = document.getElementById(`output${i + 1}`);
+      out.innerText = `Worker ${i + 1} starting...`;
 
-    worker.postMessage(testNum);
+      spawnWorker(i);
+
+      clearTimeout(timers[i]);
+      timers[i] = setTimeout(() => {
+        workers[i].terminate();
+        out.innerText = `Worker ${i + 1} Error: Timed out.`;
+      }, 10000);
+
+      workers[i].postMessage(num);
+    });
   };
 
-  attachHandlers();
+  [0, 1, 2].forEach(i => spawnWorker(i));
 </script>
-
 </body>
 </html>
