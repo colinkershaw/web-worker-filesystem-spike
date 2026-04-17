@@ -45,7 +45,8 @@
   const worker = new Worker(workerUrl);
 
   btn.onclick = () => {
-    const testNum = 9007199254740991; // Large prime
+    // const testNum = 9007199254740991; // Large prime
+    const testNum = 100000000000000003n; // Larger prime
     output.innerText = "Worker is thinking...";
     worker.postMessage(testNum);
   };
