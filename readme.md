@@ -6,7 +6,7 @@ Right-click, Save As (computer) / "Share" (iOS): [web-worker-filesystem-spike.ht
 
 ## Result
 
-Web Workers seem to work just fine from the `file://` protocol in Chrome and Edge on Windows 11, and also Chrome and Edge on iOS (so WebKit, which should also cover Safari, but it wasn't an option to open the file in from Files app) .
+Web Workers seem to work just fine from the `file://` protocol in Chrome and Edge on Windows 11, and also Chrome and Edge on iOS (so WebKit, which should also cover Safari, but it wasn't an option to open the file from Files app) .
 
 ## Rationale
 
